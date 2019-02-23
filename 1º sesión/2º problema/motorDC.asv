@@ -1,0 +1,11 @@
+function sp=motorDC(t,s)
+    % Parametros Maxon A22 5W 6V
+    L = 0.106e-3;
+    J = 4.04e-7;
+    R = 1.64;
+    b = 1.7e-7;
+    K = 5.9e-3;
+    sp=0*s;    
+    sp(1) = (1/J) * (K * s(1) - b * s(0));
+    sp(2) = (1/L) * (R * s(1) + (k) * s(0));
+return
