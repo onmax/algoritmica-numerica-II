@@ -7,15 +7,15 @@ function [T S]=adapta12(fun,Tspan,y0,tol)
 
 
     % Ptos inicial y final del intervalo a resolver 
-    T0 = y0(1);
-    Tfin = 
+    T0 = Tspan(1);
+    Tfin = Tspan(2);
 
     % Inicializar el primer valor para h
-    h = ...
+    h = T0;
 
     % Inicializar las salidas T y S con sus valores iniciales 
-    T = ...
-    S = ...  
+    T = T0;
+    S = ...
 
     while(T(end)<Tfin)
 
