@@ -9,7 +9,7 @@ motor=1;
 [T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
 motor=0;
 [T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S3=S3';
-%trayectoria_nT(S);
+trayectoria_nT(S);
 %altura_nT(S);
 %%%%%%%%%%%%%%%%%%%   FIN DEL SCRIP PRINCIPAL  %%%%%%%%%%%%%
  
@@ -130,9 +130,9 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     %t0 = 0;
     %tf = 8*3600;
     %intervalo = [t0 tf];
-    T0 = 3285;
+    T0 = 3990;
     dT0 = 310;
-    TF = 8*3600*24;
+    TF = 15*3600*24;
 
     % Datos iniciales de la nave
     rn = [6555 0];vn = [0 7.789];
