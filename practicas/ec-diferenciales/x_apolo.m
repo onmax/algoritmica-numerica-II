@@ -3,8 +3,9 @@ global motor
 
 Re = 6370; Rm = 1735; motor =0;
 
+
 [S0, opt, T0, dT0, TF] = preparar_trayectoria();
-[T2 S1]=ode45(@apolo,[0 T0],S0,opt);T2=T2';S1=S1';
+[T1 S1]=ode45(@apolo,[0 T0],S0,opt);T1=T1';S1=S1';
 motor=1;
 [T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
 motor=0;
@@ -34,11 +35,14 @@ function sp = apolo(t,s)
     % distancia entre luna y tierra
     rTL = rL - rT; rLT = -rTL;
     
+    % Reservamos el espacio de sp
+    sp=0*s;
+    
     % Establecemos velocidades
     sp(1:6) = s(7:12);
 
     % Calculo aceleraciones nave
-    sp(7:8) = (-(GM1 * r1)/norm(r1)^3) - (GM2 * r2 / norm(r2)^3);
+    sp(7:8) = -GM1 * r1/norm(r1)^3 - GM2 * r2 / norm(r2)^3;
     
     % Calculo aceleracion Luna 
     sp(9:10) = (-(GM1 * rTL)/norm(rTL)^3);
@@ -51,14 +55,13 @@ function sp = apolo(t,s)
     % lo tanto perdiendo masa
     if motor == 1
         F = 1000;
-        sp(7:8) = sp(7:8) + (F/m)/((vn-vT)/(norm(vn-vT)));
+        sp(7:8) = sp(7:8) + (F/m)*((vn-vT)/(norm(vn-vT)));
         sp(13) = -240;
     else
         sp(13) = 0;
     end
     
     % Devolver en sp las velocidades y aceleraciones de las variables de estado
-    sp = sp';
 end
 
 
@@ -79,11 +82,11 @@ end
 
 % Funci�n de eventos para detectar reentrada @ 120 km
 function [val,term,dir] = vuelta(t,s)
-global Re
-% val = valor que se anula si se cumple la condicion deseada (altura llega a 120 km)
-rn=s(1:2); rT=s(5:6); h = norm(rn-rT)-Re; val=h-120;
-term =  1;   % Detiene la iteraci�n si se cumple condici�n
-dir  = -1;   % Activar si cruce por cero es en sentido negativo (bajando)
+    global Re
+    % val = valor que se anula si se cumple la condicion deseada (altura llega a 120 km)
+    rn=s(1:2); rT=s(5:6); h = norm(rn-rT)-Re; val=h-120;
+    term =  1;   % Detiene la iteracion si se cumple condicion
+    dir  = -1;   % Activar si cruce por cero es en sentido negativo (bajando)
 end 
 
 % Funcion a ejecutarse en cada paso. Regenera gr�ficos
@@ -119,10 +122,13 @@ switch (flag)
        set(gca,'Xlim',[-5e4 400000],'Ylim',[-5e4 400000]); 
        pause(0.005);      
        
-    case 'done', 
+    case 'done',
+       title("Orbita de la nave sobre la Tierra");
+       legend({'Tierra','Luna','a','aa','Nave'});
        hold off
 end      
- 
+
+
 status=0;
 end
 
@@ -130,7 +136,7 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     %t0 = 0;
     %tf = 8*3600;
     %intervalo = [t0 tf];
-    T0 = 2500;
+    T0 = 3260;
     dT0 = 310;
     TF = 8*3600*24;
 
@@ -147,7 +153,7 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     S0 = horzcat(rn,rL,rT,vn,vL,vT,m)';
 
     % Opciones para el solver
-    opt=odeset('RelTol',1e-8,'OutputFcn',@graf,'Refine',8);   
+    opt=odeset('RelTol',1e-8,'OutputFcn',@graf,'Refine',8, 'Events', @vuelta);   
 end
 
 function trayectoria_nT(S)
