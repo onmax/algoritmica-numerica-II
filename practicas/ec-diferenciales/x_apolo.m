@@ -12,6 +12,9 @@ motor=0;
 [T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S3=S3';
 %trayectoria_nT(S);
 %altura_nT(S);
+[d h m sT] = calcular_tiempo(T1(end) + T2(end) + T3(end));
+
+fi = phi(S3(:,end));
 %%%%%%%%%%%%%%%%%%%   FIN DEL SCRIP PRINCIPAL  %%%%%%%%%%%%%
  
 
@@ -65,8 +68,11 @@ function sp = apolo(t,s)
 end
 
 
-function fi=phi(S)  
-
+function fi=phi(S)
+    xn = S(1);yn=S(2);
+    vx = S(7); vy=S(8);
+    cos = (xn*vy - yn*vx)/(norm([xn -yn]) * norm(S(7:8)));
+    fi = acosd(cos);
 end
 
 
@@ -124,7 +130,7 @@ switch (flag)
        
     case 'done',
        title("Orbita de la nave sobre la Tierra");
-       legend({'Tierra','Luna','a','aa','Nave'});
+       legend({'Tierra','Luna','Distancia Luna-Tierra','Trayectoria nave','Nave'});
        hold off
 end      
 
@@ -136,7 +142,7 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     %t0 = 0;
     %tf = 8*3600;
     %intervalo = [t0 tf];
-    T0 = 3260;
+    T0 = 3249.99905;
     dT0 = 310;
     TF = 8*3600*24;
 
@@ -153,7 +159,7 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     S0 = horzcat(rn,rL,rT,vn,vL,vT,m)';
 
     % Opciones para el solver
-    opt=odeset('RelTol',1e-8,'OutputFcn',@graf,'Refine',8, 'Events', @vuelta);   
+    opt=odeset('RelTol',1e-8,'OutputFcn',@graf,'Refine',8,'Events',@vuelta);   
 end
 
 function trayectoria_nT(S)
@@ -177,3 +183,19 @@ function altura_nT(S)
     xlabel("Segundos");
     ylabel("Kilometros");
 end
+
+function [d h m sT] = calcular_tiempo(t)
+    % d: dias, h:horas, m:minutos
+    % sT: segundos totales
+    Tdia = 24*60*60;
+    sT = t;
+    d = floor(t / Tdia);
+    h = floor((t - d * Tdia)/3600);
+    m = floor((t - d * Tdia - h * 3600)/60);
+end
+
+
+
+
+
+
