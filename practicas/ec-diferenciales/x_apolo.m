@@ -130,7 +130,7 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     %t0 = 0;
     %tf = 8*3600;
     %intervalo = [t0 tf];
-    T0 = 3285;
+    T0 = 2500;
     dT0 = 310;
     TF = 8*3600*24;
 
