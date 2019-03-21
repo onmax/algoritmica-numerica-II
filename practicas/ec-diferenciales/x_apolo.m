@@ -69,8 +69,8 @@ end
 
 
 function fi=phi(S)
-    xn = S(1);yn=S(2);
-    vx = S(7); vy=S(8);
+    xn = S(1)-S(5); yn = S(2)-S(6);
+    vx = S(7)-S(11); vy = S(8)-S(12);
     cos = (xn*vy - yn*vx)/(norm([xn -yn]) * norm(S(7:8)));
     fi = acosd(cos);
 end
@@ -142,7 +142,8 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     %t0 = 0;
     %tf = 8*3600;
     %intervalo = [t0 tf];
-    T0 = 3249.99905;
+    %T0 = 3249.99905;
+    T0=3250.1364;
     dT0 = 310;
     TF = 8*3600*24;
 
