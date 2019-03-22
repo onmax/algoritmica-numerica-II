@@ -3,18 +3,26 @@ global motor
 
 Re = 6370; Rm = 1735; motor =0;
 
+%%% INTERVALOS
+% Desde t igual a 0 hasta T0, tiempo que la nave 
+% apolo esta dando vueltas a la Tierra
+T0=3250.1364;
+%T0 = 3245;
+dT0 = 310;
+TF = 8*3600*24;
 
-[S0, opt, T0, dT0, TF] = preparar_trayectoria();
-[T1 S1]=ode45(@apolo,[0 T0],S0,opt);T1=T1';S1=S1';
-motor=1;
-[T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
-motor=0;
-[T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S3=S3';
+%[S0, opt] = preparar_trayectoria();
+%[T1 S1]=ode45(@apolo,[0 T0],S0,opt);T1=T1';S1=S1';
+%motor=1;
+%[T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
+%motor=0;
+%[T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S3=S3';
 %trayectoria_nT(S);
 %altura_nT(S);
-[d h m sT] = calcular_tiempo(T1(end) + T2(end) + T3(end));
-
-fi = phi(S3(:,end));
+%[d h m sT] = calcular_tiempo(T1(end) + T2(end) + T3(end));
+%fi = phi(S3(:,end));
+%min_nL = distancia_min_nL(S3);
+opt_trayectoria([T0 dT0 TF]);
 %%%%%%%%%%%%%%%%%%%   FIN DEL SCRIP PRINCIPAL  %%%%%%%%%%%%%
  
 
@@ -138,14 +146,11 @@ end
 status=0;
 end
 
-function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
+function [S0, opt]= preparar_trayectoria()
     %t0 = 0;
     %tf = 8*3600;
     %intervalo = [t0 tf];
-    %T0 = 3249.99905;
-    T0=3250.1364;
-    dT0 = 310;
-    TF = 8*3600*24;
+    
 
     % Datos iniciales de la nave
     rn = [6555 0];vn = [0 7.789];
@@ -163,7 +168,7 @@ function [S0, opt, T0, dT0, TF]= preparar_trayectoria()
     opt=odeset('RelTol',1e-8,'OutputFcn',@graf,'Refine',8,'Events',@vuelta);   
 end
 
-function trayectoria_nT(S)
+function trayectoria_nT(S3)
     global Re;
     xn = S(1,:);yn=S(2,:);
     xT = S(5,:);yT=S(6,:);
@@ -197,6 +202,43 @@ end
 
 
 
+function min_d = distancia_min_nL(S)
+    min_d = min(vector_h(S(1,:),S(2,:), S(3,:), S(4,:)));
+end
 
+function h = vector_h(p1x,p1y,p2x,p2y)
+    x = p1x - p2x; y = p1y - p2y;
+    h = sqrt(x.^2 + y.^2);
+end
 
+function coste=opt_trayectoria(X)
+    global motor
+    T0=X(1); dT=X(2);
+    opt=odeset('RelTol',1e-6,'events',@vuelta,'Refine',8); % SIN GRAFICOS
+    
+    T0=X(1);dT0=X(2);TF=X(3);
+    
+    [S0, opt] = preparar_trayectoria();
+    [T1 S1]=ode45(@apolo,[0 T0],S0,opt);T1=T1';S1=S1';
+    motor=1;
+    [T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
+    motor=0;
+    [T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S=S3';
+    
+    h = vector_h(S(1,:),S(2,:),S(5,:),S(6,:));
+    N = length(h);
+    idx = N;
+    min_h = 99999; 
+    for k=2:N
+        if h(k) < h(k-1) && h(k) < min_h(end)
+            min_h = h(k);
+            idx = k;
+        end
+    end
+    ang = phi(S(:,idx));
+    coste = (min_h - 120)^2 + (ang - 6.5)^2;
+    % Partir de las condiciones iniciales S0,
+    % Resolver las tres etapas [0,T0] + [T0,T0+dT], [T0+dT, 8 dias]
+    % A partir de la trayectoria de la última etapa evaluar función de coste
+end
 
