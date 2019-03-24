@@ -1,28 +1,37 @@
 global Re Rm S0
 global motor
+global cont
 
 Re = 6370; Rm = 1735; motor =0;
-
+cont = 0;
 %%% INTERVALOS
 % Desde t igual a 0 hasta T0, tiempo que la nave 
 % apolo esta dando vueltas a la Tierra
 T0=3250.1364;
-%T0 = 3245;
+T0 = 3.2048e+03;
+T0 = 3245; 
+
 dT0 = 310;
+%dT0 = 3.10401e+02;
+
 TF = 8*3600*24;
 
 %[S0, opt] = preparar_trayectoria();
-%[T1 S1]=ode45(@apolo,[0 T0],S0,opt);T1=T1';S1=S1';
+%[T1 S1]=ode45(@apolo,[0 T0],S0,opt);S1=S1';
 %motor=1;
-%[T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
+%[T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);S2=S2';
 %motor=0;
-%[T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S3=S3';
-%trayectoria_nT(S);
-%altura_nT(S);
+%[T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);S3=S3';
+%trayectoria_nT(S1);
+%altura_nT(S1);
 %[d h m sT] = calcular_tiempo(T1(end) + T2(end) + T3(end));
 %fi = phi(S3(:,end));
 %min_nL = distancia_min_nL(S3);
-opt_trayectoria([T0 dT0 TF]);
+X0 = [T0 dT0];
+opt_reentrada(X0);
+opciones_opt = optimset('MaxFunEvals', 1000,'MaxIter',1000);
+x = fminsearch(@opt_reentrada, X0, opciones_opt);
+
 %%%%%%%%%%%%%%%%%%%   FIN DEL SCRIP PRINCIPAL  %%%%%%%%%%%%%
  
 
@@ -56,10 +65,10 @@ function sp = apolo(t,s)
     sp(7:8) = -GM1 * r1/norm(r1)^3 - GM2 * r2 / norm(r2)^3;
     
     % Calculo aceleracion Luna 
-    sp(9:10) = (-(GM1 * rTL)/norm(rTL)^3);
+    sp(9:10) = -GM1 * rTL/norm(rTL)^3;
     
     % Calculo aceleracion Tierra 
-    sp(11:12) = (-(GM2 * rLT)/norm(rLT)^3);
+    sp(11:12) = -GM2 * rLT/norm(rLT)^3;
     
     % Calculamos el valor de la masa si el motor esta encendido.
     % Si el motor esta encendido, estara quemando combustible y por
@@ -79,18 +88,44 @@ end
 function fi=phi(S)
     xn = S(1)-S(5); yn = S(2)-S(6);
     vx = S(7)-S(11); vy = S(8)-S(12);
-    cos = (xn*vy - yn*vx)/(norm([xn -yn]) * norm(S(7:8)));
+    tg = [-yn xn];
+    cos = (xn*vy - yn*vx)/(norm(tg) * norm([vx vy]));
     fi = acosd(cos);
 end
 
 
-function f=opt_reentrada(x)
-    global S0
-    global Re Rm 
+function coste=opt_reentrada(x)
     global motor
-
-    T0=x(1); dT=x(2);
-
+    global cont
+    % Partir de las condiciones iniciales S0,
+    % Resolver las tres etapas [0,T0] + [T0,T0+dT], [T0+dT, 8 dias]
+    % A partir de la trayectoria de la última etapa evaluar función de coste
+    cont = cont + 1;
+    
+    opt=odeset('RelTol',1e-6,'events',@vuelta,'Refine',8); % SIN GRAFICOS
+    
+    T0=x(1);dT0=x(2);TF=8*24*3600;
+    
+    [S0, ~] = preparar_trayectoria();
+    [~, S1]=ode45(@apolo,[0 T0],S0,opt);S1=S1';
+    motor=1;
+    [~, S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);S2=S2';
+    motor=0;
+    [T, S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);S=S3';
+    
+    % Obtenemos datos respecto a la Tierra
+    [min_h idx] = altura_minima(S(1,:),S(2,:),S(5,:),S(6,:));
+    ang = phi(S(:,idx));
+    coste = (min_h - 120)^2 + (ang - 6.5)^2;
+    
+    % Obtenemos datos respecto a la Luna
+    [min_h_lunar idx] = altura_minima(S(1,:),S(2,:),S(3,:),S(4,:));
+    coste = coste + (min_h_lunar-110)^2;
+    
+    fprintf("Distancia minima entre la nave y la Tierra: %d\n", min_h);
+    fprintf("Distancia minima entre la nave y la Luna: %d en el instante %d\n", min_h_lunar, T(idx));
+    fprintf("Angulo: %d\n", ang);
+    fprintf("Coste: %d\n", coste);
 end
 
 
@@ -162,13 +197,13 @@ function [S0, opt]= preparar_trayectoria()
     m = 140000;
     
     % Vector de estado inicial (COLUMNA)
-    S0 = horzcat(rn,rL,rT,vn,vL,vT,m)';
+    S0 = [rn,rL,rT,vn,vL,vT,m]';
 
     % Opciones para el solver
     opt=odeset('RelTol',1e-8,'OutputFcn',@graf,'Refine',8,'Events',@vuelta);   
 end
 
-function trayectoria_nT(S3)
+function trayectoria_nT(S)
     global Re;
     xn = S(1,:);yn=S(2,:);
     xT = S(5,:);yT=S(6,:);
@@ -204,6 +239,7 @@ end
 
 function min_d = distancia_min_nL(S)
     min_d = min(vector_h(S(1,:),S(2,:), S(3,:), S(4,:)));
+    fprintf("La distancia mínima entre la nave y la Luna es de %d km\n", min_d);
 end
 
 function h = vector_h(p1x,p1y,p2x,p2y)
@@ -211,34 +247,15 @@ function h = vector_h(p1x,p1y,p2x,p2y)
     h = sqrt(x.^2 + y.^2);
 end
 
-function coste=opt_trayectoria(X)
-    global motor
-    T0=X(1); dT=X(2);
-    opt=odeset('RelTol',1e-6,'events',@vuelta,'Refine',8); % SIN GRAFICOS
-    
-    T0=X(1);dT0=X(2);TF=X(3);
-    
-    [S0, opt] = preparar_trayectoria();
-    [T1 S1]=ode45(@apolo,[0 T0],S0,opt);T1=T1';S1=S1';
-    motor=1;
-    [T2 S2]=ode45(@apolo,[T0 T0+dT0],S1(:,end),opt);T2=T2';S2=S2';
-    motor=0;
-    [T3 S3]=ode45(@apolo,[T0+dT0 TF],S2(:,end),opt);T3=T3';S=S3';
-    
-    h = vector_h(S(1,:),S(2,:),S(5,:),S(6,:));
+function [min_h idx] = altura_minima(p1x,p1y,p2x,p2y)
+    h = vector_h(p1x,p1y,p2x,p2y);
     N = length(h);
     idx = N;
-    min_h = 99999; 
+    min_h = h(idx); 
     for k=2:N
-        if h(k) < h(k-1) && h(k) < min_h(end)
+        if h(k) < h(k-1) && h(k) < min_h
             min_h = h(k);
             idx = k;
         end
     end
-    ang = phi(S(:,idx));
-    coste = (min_h - 120)^2 + (ang - 6.5)^2;
-    % Partir de las condiciones iniciales S0,
-    % Resolver las tres etapas [0,T0] + [T0,T0+dT], [T0+dT, 8 dias]
-    % A partir de la trayectoria de la última etapa evaluar función de coste
 end
-
